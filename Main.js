@@ -16,11 +16,7 @@ export default function Main() {
   const [tasks, setTasks] = useState([]);
   const [input, setInput] = useState('');
 
-  return (
-    <SafeAreaView style={styles.container}>
-      <Text style={styles.heading}>Expo + SQLite Task List</Text>
-    </SafeAreaView>
-  );
+  
 }
 // Delete this later placeholder
 const styles = StyleSheet.create({
@@ -42,3 +38,80 @@ useEffect(() => {
 
   setup();
 }, []);
+const loadTasks = async () => {
+  const rows = await db.getAllAsync(
+    'SELECT * FROM tasks ORDER BY id DESC;'
+  );
+  setTasks(rows);
+};
+const addTask = async () => {
+  const trimmed = input.trim();
+  if (!trimmed) return;
+
+  await db.runAsync(
+    'INSERT INTO tasks (title, done) VALUES (?, 0);',
+    [trimmed]
+  );
+
+  setInput('');
+  loadTasks();
+};
+const toggleTask = async (id, done) => {
+  const newDone = done ? 0 : 1;
+
+  await db.runAsync(
+    'UPDATE tasks SET done = ? WHERE id = ?;',
+    [newDone, id]
+  );
+
+  loadTasks();
+};
+const deleteTask = async (id) => {
+  await db.runAsync('DELETE FROM tasks WHERE id = ?;', [id]);
+  loadTasks();
+};
+const renderItem = ({ item }) => (
+  <View style={styles.taskRow}>
+    <TouchableOpacity
+      style={{ flex: 1 }}
+      onPress={() => toggleTask(item.id, item.done)}
+    >
+      <Text style={[styles.taskText, item.done ? styles.done : null]}>
+        {item.title}
+      </Text>
+    </TouchableOpacity>
+
+    <TouchableOpacity onPress={() => deleteTask(item.id)}>
+      <Text style={styles.delete}>✕</Text>
+    </TouchableOpacity>
+  </View>
+);
+return (
+  <SafeAreaView style={styles.container}>
+    <Text style={styles.heading}>Expo + SQLite Task List</Text>
+
+    <View style={styles.row}>
+      <TextInput
+        style={styles.input}
+        placeholder="New task..."
+        placeholderTextColor="#9ca3af"
+        value={input}
+        onChangeText={setInput}
+      />
+      <Button title="Add" onPress={addTask} />
+    </View>
+
+    <FlatList
+      data={tasks}
+      keyExtractor={(t) => t.id.toString()}
+      renderItem={renderItem}
+      ListEmptyComponent={
+        <Text style={styles.empty}>No tasks yet.</Text>
+      }
+    />
+
+    <Text style={styles.footer}>
+      Tap a task to toggle done • Tap ✕ to delete
+    </Text>
+  </SafeAreaView>
+);
